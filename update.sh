@@ -5,69 +5,67 @@
 
 
 ### Varibles
-upToDate="All packages are up to date."
-logName="check-update.txt"
+upToDate="`cat /var/lib/update-notifier/updates-available | grep -ow '0 packages can be updated'`"
+rebootRequired="/var/run/reboot-required"
 
-echo "$upToDate"
 
 ### Functions
+## Function to: echo a 'divider'
 divider() {
   echo -e "\n================================================================\n"
 }
 
-## Function to remove check-update.txt file
-removeLog() {
-  rm $logName
+## Function to: Echo Text
+echoE() {
+  echo -e "$1"
 }
 
-
-## Function to refresh repo database
-refreshDB() {
-  echo "Refreshing repository database..."
-  sleep 2
-  apt update | tee $logName
+## Function to: Echo text with dividers
+echoD() {
   divider
+  echoE "$1"
+  divider
+  sleep 2
 }
 
+## Function to: Update package repo
+checkSys() {
+  echoD "Updating Package Repository"
+  apt update
+}
 
-## Function to check if the system needs to be updated or if should be.
-checkUpdate() {
-  # Store string from file into var 'upgrades'
-  upgrades=`cat $logName | grep -ow "$upToDate"`
-
-  if [ "$upgrades" == "$upToDate" ]
+## Function to: Update system if it needs to be updated
+upgradeSys() {
+  if [ -z "$upToDate" ]
   then
-    echo "Upgrading system..."
+    echoD "Upgrading Packages"
     apt upgrade -y
-    divider
-
-    echo "Removing unnecesary dependencies..."
+    echoD "Removing Outdated/Unnecesarry Dependecies"
     apt autoremove -y
-    divider
-
-    echo -e 'Rebooting system...'
-    divider
-
-    removeLog
-    reboot
-
   else
-    removeLog
-    echo "No updates available."
-    divider
+    echoD "No Upgrades available"
   fi
 }
 
+## Function to: Check if the system needs to be rebooted
+checkReboot() {
+  if [ -f $rebootRequired ]
+  then
+    echoD "System Reboot Is Required"
+    reboot
+  fi
+}
 
-## Functions to initialize commands if the user is root
-update() {
+## Function to: Initialize Script
+init() {
   if [ $USER == "root" ]
   then
-    refreshDB
-    checkUpdate
+    checkSys
+    upgradeSys
+    checkReboot
   else
-    echo 'You need to be root to run this command...'
+    echoE "You need to be root to run this command"
   fi
 }
 
-update
+init
